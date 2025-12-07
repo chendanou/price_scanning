@@ -108,11 +108,19 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: node-app-prod
+          path: .
 
       - name: Azure Login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_PROD }}
+
+      - name: Set startup command
+        run: |
+          az webapp config set \
+            --name ${{ needs.deploy-infrastructure.outputs.webapp-name }} \
+            --resource-group pricing_scan_rg_prod \
+            --startup-file "node dist/server/index.js"
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
