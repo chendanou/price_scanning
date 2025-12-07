@@ -1,0 +1,115 @@
+name: Deploy to UAT
+
+on:
+  push:
+    branches: [uat]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20.x'
+  AZURE_WEBAPP_PACKAGE_PATH: '.'
+  ENVIRONMENT: 'uat'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build application
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-app-uat
+          path: |
+            dist/
+            node_modules/
+            package.json
+            package-lock.json
+
+  deploy-infrastructure:
+    runs-on: ubuntu-latest
+    needs: build
+    outputs:
+      webapp-name: ${{ steps.deploy-bicep.outputs.webAppName }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_UAT }}
+
+      - name: Create Resource Group
+        run: |
+          az group create \
+            --name pricing_scan_rg_uat \
+            --location australiaeast
+
+      - name: Deploy Bicep
+        id: deploy-bicep
+        uses: azure/arm-deploy@v1
+        with:
+          subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          resourceGroupName: pricing_scan_rg_uat
+          template: ./infrastructure/main.bicep
+          parameters: ./infrastructure/parameters/uat.parameters.json
+          deploymentName: price-survey-uat-${{ github.run_number }}
+
+      - name: Set Web App Settings
+        run: |
+          az webapp config appsettings set \
+            --name ${{ steps.deploy-bicep.outputs.webAppName }} \
+            --resource-group pricing_scan_rg_uat \
+            --settings \
+              AZURE_SEARCH_ENDPOINT="${{ steps.deploy-bicep.outputs.searchEndpoint }}" \
+              AZURE_SEARCH_KEY="${{ secrets.AZURE_SEARCH_KEY_UAT }}" \
+              AZURE_SEARCH_INDEX_NAME="products" \
+              AZURE_OPENAI_ENDPOINT="${{ secrets.AZURE_OPENAI_ENDPOINT_UAT }}" \
+              AZURE_OPENAI_KEY="${{ secrets.AZURE_OPENAI_KEY_UAT }}" \
+              AZURE_OPENAI_DEPLOYMENT_NAME="gpt-4" \
+              AZURE_OPENAI_EMBEDDING_DEPLOYMENT="text-embedding-ada-002"
+
+  deploy-app:
+    runs-on: ubuntu-latest
+    needs: [build, deploy-infrastructure]
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: node-app-uat
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_UAT }}
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ needs.deploy-infrastructure.outputs.webapp-name }}
+          package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}

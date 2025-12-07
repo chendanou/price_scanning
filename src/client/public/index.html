@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Automated Price Survey</title>
+  <link rel="stylesheet" href="/src/styles/main.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Automated Price Survey</h1>
+      <p>Upload CSV files to compare prices across multiple stores</p>
+    </header>
+
+    <main>
+      <!-- Upload Section -->
+      <section id="upload-section">
+        <div class="card">
+          <h2>Upload CSV Files</h2>
+          <div class="file-inputs">
+            <div class="file-input-group">
+              <label for="stores-file">Stores CSV</label>
+              <input type="file" id="stores-file" accept=".csv">
+              <span class="file-name" id="stores-file-name">No file chosen</span>
+            </div>
+            <div class="file-input-group">
+              <label for="products-file">Products CSV</label>
+              <input type="file" id="products-file" accept=".csv">
+              <span class="file-name" id="products-file-name">No file chosen</span>
+            </div>
+          </div>
+          <button id="start-scrape" class="btn btn-primary" disabled>Start Price Survey</button>
+        </div>
+      </section>
+
+      <!-- Progress Section -->
+      <section id="progress-section" style="display: none;">
+        <div class="card">
+          <h2>Survey Progress</h2>
+          <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <p class="progress-text" id="progress-text">Processing 0 of 0 items...</p>
+          <div class="current-task" id="current-task"></div>
+        </div>
+      </section>
+
+      <!-- Results Section -->
+      <section id="results-section" style="display: none;">
+        <div class="card">
+          <div class="results-header">
+            <h2>Survey Results</h2>
+            <button id="export-csv" class="btn btn-secondary">Export to CSV</button>
+          </div>
+          <div class="results-table-container">
+            <table id="results-table">
+              <thead>
+                <tr>
+                  <th>Product ID</th>
+                  <th>Product Name</th>
+                  <th>Brand</th>
+                  <th>Store Name</th>
+                  <th>Price</th>
+                  <th>Description</th>
+                  <th>Replacement Info</th>
+                </tr>
+              </thead>
+              <tbody id="results-tbody">
+                <!-- Results will be inserted here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>&copy; 2025 Automated Price Survey Application</p>
+    </footer>
+  </div>
+
+  <script type="module" src="/src/index.ts"></script>
+</body>
+</html>
