@@ -37,10 +37,11 @@ io.on('connection', (socket) => {
 export { io };
 
 // Start server
-const PORT = config.port;
-const HOST = config.host;
+// Azure App Service sets PORT environment variable
+const PORT = parseInt(process.env.PORT || '3000', 10);
+const HOST = '0.0.0.0'; // Listen on all interfaces for Azure
 
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, HOST, () => {
   logger.info(`Server running on http://${HOST}:${PORT}`);
   logger.info(`Environment: ${config.nodeEnv}`);
   logger.info(`Health check: http://${HOST}:${PORT}/api/health`);
