@@ -3,7 +3,7 @@ import path from 'path';
 
 export default defineConfig({
   root: path.resolve(__dirname, '.'),
-  publicDir: path.resolve(__dirname, 'public'),
+  publicDir: false, // No public directory
   build: {
     outDir: path.resolve(__dirname, '../../dist/client'),
     emptyOutDir: true,
