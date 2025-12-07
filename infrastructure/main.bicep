@@ -40,7 +40,7 @@ module storage 'modules/storage.bicep' = {
   name: 'storageDeployment'
   params: {
     location: location
-    storageAccountName: replace('${appName}${environment}${uniqueSuffix}', '-', '')
+    storageAccountName: 'ps${environment}${uniqueSuffix}'
   }
 }
 

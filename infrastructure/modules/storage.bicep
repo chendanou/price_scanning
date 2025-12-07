@@ -2,10 +2,12 @@
 param location string
 
 @description('Storage account name (must be globally unique, lowercase, no hyphens)')
+@minLength(3)
+@maxLength(24)
 param storageAccountName string
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
-  name: toLower(take(storageAccountName, 24))
+  name: toLower(replace(storageAccountName, '-', ''))
   location: location
   sku: {
     name: 'Standard_LRS'
