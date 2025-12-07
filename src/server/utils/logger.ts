@@ -3,10 +3,18 @@ import { config } from '../config';
 import path from 'path';
 import fs from 'fs';
 
+// Use Azure-compatible log directory or fallback to local
+const logsDir = process.env.WEBSITE_INSTANCE_ID
+  ? '/home/LogFiles/Application' // Azure App Service writable location
+  : path.dirname(config.logging.file);
+
 // Ensure logs directory exists
-const logsDir = path.dirname(config.logging.file);
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
+try {
+  if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+  }
+} catch (error) {
+  console.warn('Could not create logs directory, logging to console only:', error);
 }
 
 const logFormat = winston.format.combine(
@@ -28,31 +36,35 @@ const consoleFormat = winston.format.combine(
   })
 );
 
-export const logger = winston.createLogger({
-  level: config.logging.level,
-  format: logFormat,
-  transports: [
-    // Write all logs to file
+const transports: winston.transport[] = [
+  // Always log to console
+  new winston.transports.Console({
+    format: config.nodeEnv === 'production' ? logFormat : consoleFormat,
+  })
+];
+
+// Add file transports only if logs directory is writable
+try {
+  fs.accessSync(logsDir, fs.constants.W_OK);
+  transports.push(
     new winston.transports.File({
-      filename: config.logging.file,
+      filename: path.join(logsDir, 'app.log'),
       maxsize: 5242880, // 5MB
       maxFiles: 5,
     }),
-    // Write errors to separate file
     new winston.transports.File({
       filename: path.join(logsDir, 'error.log'),
       level: 'error',
       maxsize: 5242880,
       maxFiles: 5,
-    }),
-  ],
-});
-
-// Also log to console in development
-if (config.nodeEnv !== 'production') {
-  logger.add(
-    new winston.transports.Console({
-      format: consoleFormat,
     })
   );
+} catch (error) {
+  console.warn('File logging disabled - directory not writable');
 }
+
+export const logger = winston.createLogger({
+  level: config.logging.level,
+  format: logFormat,
+  transports,
+});
