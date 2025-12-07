@@ -1,4 +1,4 @@
-import express, { Application, Request, Response, NextFunction } from 'express';
+import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -37,7 +37,7 @@ export function createApp(): Application {
   app.use('/api', apiRoutes);
 
   // Health check endpoint
-  app.get('/api/health', (req: Request, res: Response) => {
+  app.get('/api/health', (_req: Request, res: Response) => {
     res.json({
       status: 'healthy',
       timestamp: new Date().toISOString(),
@@ -47,7 +47,7 @@ export function createApp(): Application {
   });
 
   // Serve index.html for client-side routing
-  app.get('*', (req: Request, res: Response) => {
+  app.get('*', (_req: Request, res: Response) => {
     res.sendFile(path.join(__dirname, '../../client/index.html'));
   });
 
