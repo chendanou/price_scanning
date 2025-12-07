@@ -2,20 +2,24 @@ import winston from 'winston';
 import path from 'path';
 import fs from 'fs';
 
-// Determine log directory - Azure vs local
-// Azure App Service: Use /home/LogFiles/Application (writable)
+// Determine log directory
+// Azure App Service: Use /home/LogFiles/Application (pre-existing writable location)
 // Local development: Use logs directory in project root
-const logsDir = process.env.WEBSITE_INSTANCE_ID
+const isAzure = process.env.WEBSITE_INSTANCE_ID || process.env.WEBSITE_SITE_NAME;
+const logsDir = isAzure
   ? '/home/LogFiles/Application'
   : path.join(process.cwd(), 'logs');
 
-// Ensure logs directory exists
-try {
-  if (!fs.existsSync(logsDir)) {
-    fs.mkdirSync(logsDir, { recursive: true });
+// For local development, ensure logs directory exists
+// For Azure, /home/LogFiles/Application already exists
+if (!isAzure) {
+  try {
+    if (!fs.existsSync(logsDir)) {
+      fs.mkdirSync(logsDir, { recursive: true });
+    }
+  } catch (error) {
+    console.warn('Could not create logs directory:', error);
   }
-} catch (error) {
-  console.warn('Could not create logs directory, logging to console only:', error);
 }
 
 const logFormat = winston.format.combine(
@@ -44,24 +48,28 @@ const transports: winston.transport[] = [
   })
 ];
 
-// Add file transports only if logs directory is writable
-try {
-  fs.accessSync(logsDir, fs.constants.W_OK);
-  transports.push(
-    new winston.transports.File({
-      filename: path.join(logsDir, 'app.log'),
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-    }),
-    new winston.transports.File({
-      filename: path.join(logsDir, 'error.log'),
-      level: 'error',
-      maxsize: 5242880,
-      maxFiles: 5,
-    })
-  );
-} catch (error) {
-  console.warn('File logging disabled - directory not writable');
+// Add file transports only if logs directory exists and is writable
+if (fs.existsSync(logsDir)) {
+  try {
+    fs.accessSync(logsDir, fs.constants.W_OK);
+    transports.push(
+      new winston.transports.File({
+        filename: path.join(logsDir, 'app.log'),
+        maxsize: 5242880, // 5MB
+        maxFiles: 5,
+      }),
+      new winston.transports.File({
+        filename: path.join(logsDir, 'error.log'),
+        level: 'error',
+        maxsize: 5242880,
+        maxFiles: 5,
+      })
+    );
+  } catch (error) {
+    console.warn('File logging disabled - directory not writable');
+  }
+} else if (isAzure) {
+  console.warn('Azure logs directory does not exist, using console only');
 }
 
 export const logger = winston.createLogger({
