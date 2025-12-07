@@ -8,9 +8,7 @@ export default defineConfig({
     outDir: '../../dist/client',
     emptyOutDir: true,
     rollupOptions: {
-      input: {
-        main: path.resolve(__dirname, 'src/client/public/index.html'),
-      },
+      input: path.resolve(__dirname, 'public/index.html'),
     },
   },
   server: {
