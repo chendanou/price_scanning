@@ -1,12 +1,13 @@
 import winston from 'winston';
-import { config } from '../config';
 import path from 'path';
 import fs from 'fs';
 
-// Use Azure-compatible log directory or fallback to local
+// Determine log directory - Azure vs local
+// Azure App Service: Use /home/LogFiles/Application (writable)
+// Local development: Use logs directory in project root
 const logsDir = process.env.WEBSITE_INSTANCE_ID
-  ? '/home/LogFiles/Application' // Azure App Service writable location
-  : path.dirname(config.logging.file);
+  ? '/home/LogFiles/Application'
+  : path.join(process.cwd(), 'logs');
 
 // Ensure logs directory exists
 try {
@@ -39,7 +40,7 @@ const consoleFormat = winston.format.combine(
 const transports: winston.transport[] = [
   // Always log to console
   new winston.transports.Console({
-    format: config.nodeEnv === 'production' ? logFormat : consoleFormat,
+    format: process.env.NODE_ENV === 'production' ? logFormat : consoleFormat,
   })
 ];
 
@@ -64,7 +65,7 @@ try {
 }
 
 export const logger = winston.createLogger({
-  level: config.logging.level,
+  level: process.env.LOG_LEVEL || 'info',
   format: logFormat,
   transports,
 });
