@@ -2,9 +2,41 @@ import { parse } from 'csv-parse/sync';
 import { StoreData, ProductData, ValidationError } from '../types';
 import { logger } from '../utils/logger';
 
-// Required column headers
+// Required column headers (case-insensitive matching)
 const STORE_HEADERS = ['StoreName', 'Website URL'];
 const PRODUCT_HEADERS = ['ProductId', 'ProductName', 'Description', 'Brand'];
+
+/**
+ * Normalize header names for comparison (case-insensitive, remove spaces)
+ */
+function normalizeHeader(header: string): string {
+  return header.toLowerCase().replace(/\s+/g, '');
+}
+
+/**
+ * Check if headers match (case-insensitive, flexible spacing)
+ */
+function headersMatch(actual: string[], required: string[]): { match: boolean; missing: string[] } {
+  const normalizedActual = actual.map(normalizeHeader);
+  const missing: string[] = [];
+
+  for (const requiredHeader of required) {
+    const normalized = normalizeHeader(requiredHeader);
+    if (!normalizedActual.includes(normalized)) {
+      missing.push(requiredHeader);
+    }
+  }
+
+  return { match: missing.length === 0, missing };
+}
+
+/**
+ * Find actual header name that matches required header (case-insensitive)
+ */
+function findMatchingHeader(actualHeaders: string[], requiredHeader: string): string | undefined {
+  const normalized = normalizeHeader(requiredHeader);
+  return actualHeaders.find(h => normalizeHeader(h) === normalized);
+}
 
 /**
  * Parse stores CSV file
@@ -20,29 +52,38 @@ export async function parseStoresCSV(
       columns: true,
       skip_empty_lines: true,
       trim: true,
+      bom: true, // Handle BOM (Byte Order Mark) in UTF-8 files
     });
 
     // Validate headers
     if (records.length > 0) {
       const headers = Object.keys(records[0]);
-      const missingHeaders = STORE_HEADERS.filter((h) => !headers.includes(h));
+      const headerCheck = headersMatch(headers, STORE_HEADERS);
 
-      if (missingHeaders.length > 0) {
+      if (!headerCheck.match) {
         errors.push({
           row: 0,
           field: 'headers',
-          message: `Missing required columns: ${missingHeaders.join(', ')}`,
+          message: `Missing required columns: ${headerCheck.missing.join(', ')}. Found: ${headers.join(', ')}`,
         });
         return { data: [], errors };
       }
     }
 
+    // Find actual header names (case-insensitive)
+    const headers = records.length > 0 ? Object.keys(records[0]) : [];
+    const storeNameHeader = findMatchingHeader(headers, 'StoreName');
+    const websiteUrlHeader = findMatchingHeader(headers, 'Website URL');
+
     // Parse and validate each row
     records.forEach((record: any, index: number) => {
       const rowNum = index + 2; // +2 because index is 0-based and header is row 1
 
+      const storeName = storeNameHeader ? record[storeNameHeader] : '';
+      const websiteUrl = websiteUrlHeader ? record[websiteUrlHeader] : '';
+
       // Validate StoreName
-      if (!record.StoreName || record.StoreName.trim() === '') {
+      if (!storeName || storeName.trim() === '') {
         errors.push({
           row: rowNum,
           field: 'StoreName',
@@ -51,13 +92,13 @@ export async function parseStoresCSV(
       }
 
       // Validate Website URL
-      if (!record['Website URL'] || record['Website URL'].trim() === '') {
+      if (!websiteUrl || websiteUrl.trim() === '') {
         errors.push({
           row: rowNum,
           field: 'Website URL',
           message: 'Website URL is required',
         });
-      } else if (!isValidUrl(record['Website URL'])) {
+      } else if (!isValidUrl(websiteUrl)) {
         errors.push({
           row: rowNum,
           field: 'Website URL',
@@ -66,10 +107,10 @@ export async function parseStoresCSV(
       }
 
       // Add valid store data
-      if (record.StoreName && record['Website URL'] && isValidUrl(record['Website URL'])) {
+      if (storeName && websiteUrl && isValidUrl(websiteUrl)) {
         data.push({
-          storeName: record.StoreName.trim(),
-          websiteUrl: record['Website URL'].trim(),
+          storeName: storeName.trim(),
+          websiteUrl: websiteUrl.trim(),
         });
       }
     });
@@ -101,29 +142,42 @@ export async function parseProductsCSV(
       columns: true,
       skip_empty_lines: true,
       trim: true,
+      bom: true, // Handle BOM (Byte Order Mark) in UTF-8 files
     });
 
     // Validate headers
     if (records.length > 0) {
       const headers = Object.keys(records[0]);
-      const missingHeaders = PRODUCT_HEADERS.filter((h) => !headers.includes(h));
+      const headerCheck = headersMatch(headers, PRODUCT_HEADERS);
 
-      if (missingHeaders.length > 0) {
+      if (!headerCheck.match) {
         errors.push({
           row: 0,
           field: 'headers',
-          message: `Missing required columns: ${missingHeaders.join(', ')}`,
+          message: `Missing required columns: ${headerCheck.missing.join(', ')}. Found: ${headers.join(', ')}`,
         });
         return { data: [], errors };
       }
     }
 
+    // Find actual header names (case-insensitive)
+    const headers = records.length > 0 ? Object.keys(records[0]) : [];
+    const productIdHeader = findMatchingHeader(headers, 'ProductId');
+    const productNameHeader = findMatchingHeader(headers, 'ProductName');
+    const descriptionHeader = findMatchingHeader(headers, 'Description');
+    const brandHeader = findMatchingHeader(headers, 'Brand');
+
     // Parse and validate each row
     records.forEach((record: any, index: number) => {
       const rowNum = index + 2; // +2 because index is 0-based and header is row 1
 
+      const productId = productIdHeader ? record[productIdHeader] : '';
+      const productName = productNameHeader ? record[productNameHeader] : '';
+      const description = descriptionHeader ? record[descriptionHeader] : '';
+      const brand = brandHeader ? record[brandHeader] : '';
+
       // Validate ProductId
-      if (!record.ProductId || record.ProductId.trim() === '') {
+      if (!productId || productId.trim() === '') {
         errors.push({
           row: rowNum,
           field: 'ProductId',
@@ -132,7 +186,7 @@ export async function parseProductsCSV(
       }
 
       // Validate ProductName
-      if (!record.ProductName || record.ProductName.trim() === '') {
+      if (!productName || productName.trim() === '') {
         errors.push({
           row: rowNum,
           field: 'ProductName',
@@ -141,7 +195,7 @@ export async function parseProductsCSV(
       }
 
       // Validate Description
-      if (!record.Description || record.Description.trim() === '') {
+      if (!description || description.trim() === '') {
         errors.push({
           row: rowNum,
           field: 'Description',
@@ -150,7 +204,7 @@ export async function parseProductsCSV(
       }
 
       // Validate Brand
-      if (!record.Brand || record.Brand.trim() === '') {
+      if (!brand || brand.trim() === '') {
         errors.push({
           row: rowNum,
           field: 'Brand',
@@ -159,17 +213,12 @@ export async function parseProductsCSV(
       }
 
       // Add valid product data
-      if (
-        record.ProductId &&
-        record.ProductName &&
-        record.Description &&
-        record.Brand
-      ) {
+      if (productId && productName && description && brand) {
         data.push({
-          productId: record.ProductId.trim(),
-          productName: record.ProductName.trim(),
-          description: record.Description.trim(),
-          brand: record.Brand.trim(),
+          productId: productId.trim(),
+          productName: productName.trim(),
+          description: description.trim(),
+          brand: brand.trim(),
         });
       }
     });
