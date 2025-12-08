@@ -7,8 +7,10 @@ param appName string
 @description('Environment name')
 param environment string
 
-var skuName = environment == 'dev' ? 'F1' : 'B1'
-var skuTier = environment == 'dev' ? 'Free' : 'Basic'
+// Note: F1 (Free) tier doesn't support Playwright's system dependencies
+// Using B1 (Basic) for all environments to support browser automation
+var skuName = 'B1'
+var skuTier = 'Basic'
 
 resource appServicePlan 'Microsoft.Web/serverfarms@2022-09-01' = {
   name: '${appName}-plan'
