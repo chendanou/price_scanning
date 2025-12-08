@@ -172,8 +172,9 @@ async function startScraping(jobId: string): Promise<void> {
     showMessage('Scraping started! Watch the progress below.', 'success');
 
     // TODO: In Phase 7, connect to Socket.IO for real-time progress updates
-    // For now, just show a message
+    // For now, poll for completion
     updateProgress(0, 'Scraping in progress...');
+    pollJobStatus(jobId);
   } catch (error) {
     console.error('Scraping error:', error);
     showMessage('Network error: Failed to start scraping', 'error');
@@ -181,15 +182,120 @@ async function startScraping(jobId: string): Promise<void> {
 }
 
 /**
+ * Poll job status until complete (placeholder until Socket.IO in Phase 7)
+ */
+async function pollJobStatus(jobId: string): Promise<void> {
+  const pollInterval = setInterval(async () => {
+    try {
+      const response = await fetch(`/api/jobs/${jobId}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        clearInterval(pollInterval);
+        showMessage('Failed to get job status', 'error');
+        return;
+      }
+
+      console.log('Job status:', data);
+
+      // Update progress based on status
+      if (data.status === 'completed') {
+        clearInterval(pollInterval);
+        updateProgress(100, 'Scraping complete!');
+        showMessage('Scraping completed successfully!', 'success');
+
+        // Fetch and display results
+        await fetchAndDisplayResults(jobId);
+      } else if (data.status === 'failed') {
+        clearInterval(pollInterval);
+        updateProgress(0, 'Scraping failed');
+        showMessage('Scraping failed. Please try again.', 'error');
+      } else if (data.status === 'processing') {
+        // Show processing status
+        updateProgress(50, 'Scraping stores and products...');
+      }
+    } catch (error) {
+      console.error('Error polling job status:', error);
+    }
+  }, 2000); // Poll every 2 seconds
+}
+
+/**
+ * Fetch and display results
+ */
+async function fetchAndDisplayResults(jobId: string): Promise<void> {
+  try {
+    const response = await fetch(`/api/results/${jobId}`);
+    const data = await response.json();
+
+    if (!response.ok) {
+      showMessage('Failed to fetch results', 'error');
+      return;
+    }
+
+    displayResults(data.results || []);
+  } catch (error) {
+    console.error('Error fetching results:', error);
+    showMessage('Network error: Failed to fetch results', 'error');
+  }
+}
+
+/**
+ * Display results in table
+ */
+function displayResults(results: any[]): void {
+  const resultsSection = document.getElementById('results-section');
+  const tbody = document.getElementById('results-tbody');
+
+  if (!resultsSection || !tbody) return;
+
+  // Clear existing results
+  tbody.innerHTML = '';
+
+  // Populate table
+  results.forEach((result) => {
+    const row = document.createElement('tr');
+
+    // Add warning class for non-exact matches
+    if (!result.isExactMatch) {
+      row.classList.add('replacement-row');
+    }
+
+    row.innerHTML = `
+      <td>${result.productId || 'N/A'}</td>
+      <td>${result.productName || 'N/A'}</td>
+      <td>${result.brand || 'N/A'}</td>
+      <td>${result.storeName || 'N/A'}</td>
+      <td>${result.price ? `$${result.price.toFixed(2)} ${result.currency || 'NZD'}` : 'N/A'}</td>
+      <td>${result.foundProductName || result.productName}</td>
+      <td>${result.replacementDescription || (result.isExactMatch ? 'Exact match' : 'N/A')}</td>
+    `;
+
+    tbody.appendChild(row);
+  });
+
+  // Show results section
+  resultsSection.style.display = 'block';
+
+  // Setup export button
+  const exportButton = document.getElementById('export-csv');
+  if (exportButton) {
+    exportButton.onclick = () => {
+      const jobId = results[0]?.jobId || '';
+      window.location.href = `/api/results/${jobId}/csv`;
+    };
+  }
+}
+
+/**
  * Update progress bar (placeholder for Phase 7 Socket.IO integration)
  */
 function updateProgress(progress: number, message: string): void {
-  const progressBar = document.getElementById('progress-bar') as HTMLDivElement;
-  const progressText = document.getElementById('progress-text') as HTMLDivElement;
+  const progressFill = document.getElementById('progress-fill') as HTMLDivElement;
+  const progressText = document.getElementById('progress-text') as HTMLParagraphElement;
 
-  if (progressBar) {
-    progressBar.style.width = `${progress}%`;
-    progressBar.setAttribute('aria-valuenow', progress.toString());
+  if (progressFill) {
+    progressFill.style.width = `${progress}%`;
   }
 
   if (progressText) {

@@ -49,6 +49,7 @@ export enum JobStatus {
 export interface ScrapingResult {
   productId: string;
   productName: string;
+  brand: string;
   storeName: string;
   foundProductName?: string;
   price?: number;

@@ -87,6 +87,7 @@ export async function startScraping(jobId: string): Promise<void> {
           results.push({
             productId: product.productId,
             productName: product.productName,
+            brand: product.brand,
             storeName: store.storeName,
             isExactMatch: false,
             errorMessage: error instanceof Error ? error.message : 'Unknown error',
@@ -175,6 +176,7 @@ async function scrapeProduct(
     return {
       productId: product.productId,
       productName: product.productName,
+      brand: product.brand,
       storeName: store.storeName,
       foundProductName: `${product.productName} (placeholder)`,
       price: 9.99 + Math.random() * 10, // Placeholder price
