@@ -1,11 +1,11 @@
 import { Router } from 'express';
+import { uploadFiles } from '../middleware/file-upload';
+import { uploadController } from '../controllers/upload.controller';
 
 const router = Router();
 
-// Placeholder routes - will be implemented in later phases
-router.post('/upload', (_req, res) => {
-  res.json({ message: 'Upload endpoint - to be implemented' });
-});
+// File upload endpoint
+router.post('/upload', uploadFiles, uploadController);
 
 router.post('/scrape', (_req, res) => {
   res.json({ message: 'Scrape endpoint - to be implemented' });
