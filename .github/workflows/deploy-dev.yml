@@ -37,9 +37,6 @@ jobs:
         env:
           NODE_ENV: production
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -49,6 +46,7 @@ jobs:
             node_modules/
             package.json
             package-lock.json
+            startup.sh
 
   deploy-infrastructure:
     runs-on: ubuntu-latest
@@ -114,7 +112,7 @@ jobs:
           az webapp config set \
             --name ${{ needs.deploy-infrastructure.outputs.webapp-name }} \
             --resource-group pricing_scan_rg_dev \
-            --startup-file "node dist/server/index.js"
+            --startup-file "bash startup.sh"
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
