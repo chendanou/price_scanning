@@ -83,13 +83,17 @@ startScrapeButton?.addEventListener('click', async () => {
       'success'
     );
 
-    // Show progress section (for future implementation)
+    // Show progress section
     const progressSection = document.getElementById('progress-section');
     if (progressSection) {
       progressSection.style.display = 'block';
     }
 
     console.log('Upload successful:', data);
+
+    // Automatically start scraping
+    startScrapeButton.textContent = 'Scraping...';
+    await startScraping(data.jobId);
   } catch (error) {
     console.error('Upload error:', error);
     showMessage('Network error: Failed to upload files', 'error');
@@ -143,4 +147,52 @@ function showMessage(message: string, type: 'success' | 'error') {
       messageDiv.style.display = 'none';
     }
   }, 5000);
+}
+
+/**
+ * Start scraping for a job
+ */
+async function startScraping(jobId: string): Promise<void> {
+  try {
+    const response = await fetch('/api/scrape', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ jobId }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      showMessage(data.message || 'Failed to start scraping', 'error');
+      return;
+    }
+
+    showMessage('Scraping started! Watch the progress below.', 'success');
+
+    // TODO: In Phase 7, connect to Socket.IO for real-time progress updates
+    // For now, just show a message
+    updateProgress(0, 'Scraping in progress...');
+  } catch (error) {
+    console.error('Scraping error:', error);
+    showMessage('Network error: Failed to start scraping', 'error');
+  }
+}
+
+/**
+ * Update progress bar (placeholder for Phase 7 Socket.IO integration)
+ */
+function updateProgress(progress: number, message: string): void {
+  const progressBar = document.getElementById('progress-bar') as HTMLDivElement;
+  const progressText = document.getElementById('progress-text') as HTMLDivElement;
+
+  if (progressBar) {
+    progressBar.style.width = `${progress}%`;
+    progressBar.setAttribute('aria-valuenow', progress.toString());
+  }
+
+  if (progressText) {
+    progressText.textContent = message;
+  }
 }
