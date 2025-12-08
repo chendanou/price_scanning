@@ -31,7 +31,7 @@ export function createApp(): Application {
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   // Serve static files from client dist
-  app.use(express.static(path.join(__dirname, '../../client')));
+  app.use(express.static(path.join(__dirname, '../client')));
 
   // API routes
   app.use('/api', apiRoutes);
@@ -48,7 +48,7 @@ export function createApp(): Application {
 
   // Serve index.html for client-side routing
   app.get('*', (_req: Request, res: Response) => {
-    res.sendFile(path.join(__dirname, '../../client/index.html'));
+    res.sendFile(path.join(__dirname, '../client/index.html'));
   });
 
   // Error handling middleware (must be last)
