@@ -127,13 +127,17 @@ export async function startScraping(jobId: string): Promise<void> {
 
     logger.info(`Scraping job ${jobId} completed successfully. Total results: ${results.length}`);
   } catch (error) {
-    logger.error(`Scraping job ${jobId} failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    updateJobStatus(jobId, JobStatus.FAILED);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : '';
+
+    logger.error(`Scraping job ${jobId} failed: ${errorMessage}`, { stack: errorStack });
+    updateJobStatus(jobId, JobStatus.FAILED, errorMessage);
 
     emitProgress(jobId, {
       status: 'failed',
       progress: 0,
-      message: `Job failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      message: `Job failed: ${errorMessage}`,
+      error: errorMessage,
     });
 
     throw error;

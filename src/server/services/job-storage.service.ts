@@ -22,10 +22,13 @@ export function getJob(jobId: string): JobData | undefined {
 /**
  * Update job status
  */
-export function updateJobStatus(jobId: string, status: JobStatus): void {
+export function updateJobStatus(jobId: string, status: JobStatus, error?: string): void {
   const job = jobs.get(jobId);
   if (job) {
     job.status = status;
+    if (error) {
+      job.error = error;
+    }
     jobs.set(jobId, job);
     logger.info(`Job ${jobId} status updated to ${status}`);
   }

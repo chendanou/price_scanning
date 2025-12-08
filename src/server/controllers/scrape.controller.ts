@@ -39,7 +39,7 @@ export async function scrapeController(
 
     // Start scraping in background (don't wait for it to complete)
     startScraping(jobId).catch((error) => {
-      logger.error(`Scraping job ${jobId} failed: ${error.message}`);
+      logger.error(`Scraping job ${jobId} failed: ${error.message}`, { stack: error.stack });
     });
 
     // Return immediately
@@ -76,6 +76,7 @@ export async function getJobStatus(
       stores: job.stores.length,
       products: job.products.length,
       resultsCount: job.results?.length || 0,
+      error: job.error,
     });
   } catch (error) {
     next(error);

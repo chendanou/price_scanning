@@ -209,7 +209,9 @@ async function pollJobStatus(jobId: string): Promise<void> {
       } else if (data.status === 'failed') {
         clearInterval(pollInterval);
         updateProgress(0, 'Scraping failed');
-        showMessage('Scraping failed. Please try again.', 'error');
+        const errorMsg = data.error ? `Scraping failed: ${data.error}` : 'Scraping failed. Please try again.';
+        showMessage(errorMsg, 'error');
+        console.error('Scraping error details:', data.error);
       } else if (data.status === 'processing') {
         // Show processing status
         updateProgress(50, 'Scraping stores and products...');

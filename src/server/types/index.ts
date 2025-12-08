@@ -37,6 +37,7 @@ export interface JobData {
   status: JobStatus;
   createdAt: Date;
   results?: ScrapingResult[];
+  error?: string;
 }
 
 export enum JobStatus {
