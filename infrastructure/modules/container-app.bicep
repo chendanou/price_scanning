@@ -10,9 +10,6 @@ param environment string
 @description('Container image name')
 param containerImage string
 
-@description('Container registry server')
-param containerRegistry string = 'ghcr.io'
-
 @description('Azure Search endpoint')
 param searchEndpoint string
 

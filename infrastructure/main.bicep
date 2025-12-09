@@ -15,9 +15,6 @@ param appName string = 'price-survey'
 @description('Container image to deploy')
 param containerImage string
 
-@description('Container registry server')
-param containerRegistry string = 'ghcr.io'
-
 @description('Azure Search key')
 @secure()
 param searchKey string
@@ -40,7 +37,6 @@ module containerApp 'modules/container-app.bicep' = {
     appName: resourcePrefix
     environment: environment
     containerImage: containerImage
-    containerRegistry: containerRegistry
     searchEndpoint: aiSearch.outputs.searchEndpoint
     searchKey: searchKey
     openaiEndpoint: openaiEndpoint

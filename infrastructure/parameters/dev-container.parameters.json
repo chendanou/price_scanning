@@ -14,9 +14,6 @@
     "containerImage": {
       "value": "ghcr.io/YOUR_GITHUB_USERNAME/price-survey:latest"
     },
-    "containerRegistry": {
-      "value": "ghcr.io"
-    },
     "searchKey": {
       "reference": {
         "keyVault": {
