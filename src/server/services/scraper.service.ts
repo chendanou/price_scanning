@@ -1,13 +1,32 @@
 import { io } from '../index';
 import { getJob, updateJobStatus } from './job-storage.service';
 import { JobStatus, ScrapingResult, StoreData, ProductData } from '../types';
-import * as browserService from './browser.service';
-import { retry, sleep, addJitter } from '../utils/retry';
 import { logger } from '../utils/logger';
-import { config } from '../config';
 
 /**
- * Start scraping job
+ * Sleep helper
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Add random jitter to delays (for realistic timing)
+ */
+function addJitter(delayMs: number): number {
+  const jitter = Math.random() * 500; // 0-500ms random jitter
+  return delayMs + jitter;
+}
+
+/**
+ * Start scraping job (MOCK IMPLEMENTATION)
+ *
+ * NOTE: This is a mock implementation that returns placeholder data.
+ * Browser automation with Playwright requires system dependencies not available on Azure App Service.
+ * Real scraping will be implemented in Phase 5 using one of these approaches:
+ * - Azure Container Apps with Docker (Playwright pre-installed)
+ * - Azure Functions with Puppeteer
+ * - External scraping service
  */
 export async function startScraping(jobId: string): Promise<void> {
   const job = getJob(jobId);
@@ -16,25 +35,19 @@ export async function startScraping(jobId: string): Promise<void> {
     throw new Error(`Job ${jobId} not found`);
   }
 
-  logger.info(`Starting scraping job: ${jobId}`);
+  logger.info(`Starting MOCK scraping job: ${jobId} (placeholder data only)`);
   updateJobStatus(jobId, JobStatus.PROCESSING);
 
   // Emit initial progress
   emitProgress(jobId, {
     status: 'processing',
     progress: 0,
-    message: 'Initializing browser...',
+    message: 'Initializing scraper (mock mode)...',
   });
 
   const results: ScrapingResult[] = [];
-  let browser;
-  let context;
 
   try {
-    // Launch browser
-    browser = await browserService.launchBrowser();
-    context = await browserService.createContext(browser);
-
     const totalStores = job.stores.length;
     const totalProducts = job.products.length;
     const totalTasks = totalStores * totalProducts;
@@ -59,40 +72,9 @@ export async function startScraping(jobId: string): Promise<void> {
 
         logger.info(`  Product ${productIndex + 1}/${totalProducts}: ${product.productName}`);
 
-        try {
-          // Scrape product with retry logic
-          const result = await retry(
-            () => scrapeProduct(context!, store, product),
-            {
-              maxRetries: config.scraping.maxRetries,
-              delayMs: 2000,
-              onRetry: (error, attempt) => {
-                logger.warn(`  Retry attempt ${attempt} for ${product.productName}: ${error.message}`);
-              },
-            }
-          );
-
-          results.push(result);
-
-          // Rate limiting between products (anti-bot measure)
-          if (productIndex < job.products.length - 1) {
-            const delay = addJitter(config.scraping.delayBetweenProductsMs);
-            logger.info(`  Waiting ${Math.round(delay)}ms before next product...`);
-            await sleep(delay);
-          }
-        } catch (error) {
-          logger.error(`  Failed to scrape ${product.productName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-
-          // Add error result
-          results.push({
-            productId: product.productId,
-            productName: product.productName,
-            brand: product.brand,
-            storeName: store.storeName,
-            isExactMatch: false,
-            errorMessage: error instanceof Error ? error.message : 'Unknown error',
-          });
-        }
+        // Generate mock result
+        const result = generateMockResult(store, product);
+        results.push(result);
 
         completedTasks++;
 
@@ -104,13 +86,16 @@ export async function startScraping(jobId: string): Promise<void> {
           currentStore: store.storeName,
           currentProduct: product.productName,
         });
+
+        // Simulate realistic delay between products
+        if (productIndex < job.products.length - 1) {
+          await sleep(addJitter(500)); // Much faster than real scraping
+        }
       }
 
-      // Rate limiting between stores (anti-bot measure)
+      // Simulate realistic delay between stores
       if (storeIndex < job.stores.length - 1) {
-        const delay = addJitter(config.scraping.delayBetweenStoresMs);
-        logger.info(`Waiting ${Math.round(delay)}ms before next store...`);
-        await sleep(delay);
+        await sleep(addJitter(1000));
       }
     }
 
@@ -121,11 +106,11 @@ export async function startScraping(jobId: string): Promise<void> {
     emitProgress(jobId, {
       status: 'completed',
       progress: 100,
-      message: `Completed! Scraped ${results.length} products from ${totalStores} stores.`,
+      message: `Completed! Generated ${results.length} mock results from ${totalStores} stores.`,
       results,
     });
 
-    logger.info(`Scraping job ${jobId} completed successfully. Total results: ${results.length}`);
+    logger.info(`Mock scraping job ${jobId} completed successfully. Total results: ${results.length}`);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : '';
@@ -141,57 +126,73 @@ export async function startScraping(jobId: string): Promise<void> {
     });
 
     throw error;
-  } finally {
-    // Cleanup
-    if (context) {
-      await browserService.closeContext(context);
-    }
-    if (browser) {
-      await browserService.closeBrowser();
-    }
   }
 }
 
 /**
- * Scrape a single product from a store
- * This is a basic implementation - will be enhanced with AI in Phase 5
+ * Generate mock scraping result with realistic placeholder data
  */
-async function scrapeProduct(
-  context: any,
-  store: StoreData,
-  product: ProductData
-): Promise<ScrapingResult> {
-  const page = await browserService.createPage(context);
+function generateMockResult(store: StoreData, product: ProductData): ScrapingResult {
+  // Vary results to make it more realistic
+  const scenarios = [
+    // 70% - Found with price
+    {
+      weight: 0.7,
+      result: {
+        foundProductName: `${product.productName} - ${product.brand}`,
+        price: 9.99 + Math.random() * 50, // $9.99 - $59.99
+        currency: 'NZD',
+        availability: Math.random() > 0.2 ? 'In Stock' : 'Low Stock',
+        isExactMatch: Math.random() > 0.3,
+        replacementDescription: undefined,
+      },
+    },
+    // 20% - Found but different variant
+    {
+      weight: 0.2,
+      result: {
+        foundProductName: `${product.productName} (Alternative Size)`,
+        price: 9.99 + Math.random() * 50,
+        currency: 'NZD',
+        availability: 'In Stock',
+        isExactMatch: false,
+        replacementDescription: 'Similar product found - size or variant may differ',
+      },
+    },
+    // 10% - Not found
+    {
+      weight: 0.1,
+      result: {
+        foundProductName: undefined,
+        price: undefined,
+        currency: 'NZD',
+        availability: 'Out of Stock',
+        isExactMatch: false,
+        replacementDescription: 'Product not available at this store',
+      },
+    },
+  ];
 
-  try {
-    // Navigate to store website
-    await browserService.navigateToUrl(page, store.websiteUrl);
+  // Weighted random selection
+  const rand = Math.random();
+  let cumulative = 0;
+  let selectedScenario = scenarios[0].result;
 
-    // Basic implementation: Just visit the site and return placeholder
-    // In Phase 5, we'll add:
-    // - AI-powered search box detection
-    // - Product search functionality
-    // - Price extraction with AI
-    // - Semantic product matching
-
-    logger.info(`    Visited ${store.websiteUrl}`);
-
-    // For now, return a placeholder result
-    return {
-      productId: product.productId,
-      productName: product.productName,
-      brand: product.brand,
-      storeName: store.storeName,
-      foundProductName: `${product.productName} (placeholder)`,
-      price: 9.99 + Math.random() * 10, // Placeholder price
-      currency: 'NZD',
-      availability: 'In Stock',
-      isExactMatch: false,
-      replacementDescription: 'This is a placeholder result. AI integration coming in Phase 5.',
-    };
-  } finally {
-    await page.close();
+  for (const scenario of scenarios) {
+    cumulative += scenario.weight;
+    if (rand <= cumulative) {
+      selectedScenario = scenario.result;
+      break;
+    }
   }
+
+  return {
+    productId: product.productId,
+    productName: product.productName,
+    brand: product.brand,
+    storeName: store.storeName,
+    ...selectedScenario,
+  };
 }
 
 /**
