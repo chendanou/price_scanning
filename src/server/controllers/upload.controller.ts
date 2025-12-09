@@ -5,6 +5,7 @@ import { saveJob } from '../services/job-storage.service';
 import { JobStatus, UploadResponse } from '../types';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
+import { indexProducts } from '../services/ai-search.service';
 
 /**
  * Handle file upload
@@ -63,6 +64,13 @@ export async function uploadController(
       products: productsResult.data,
       status: JobStatus.UPLOADED,
       createdAt: new Date(),
+    });
+
+    // Index products in Azure AI Search (async, don't wait)
+    indexProducts(productsResult.data).catch((error) => {
+      logger.error(`Failed to index products for job ${jobId}:`, {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
     });
 
     // Return success response
