@@ -24,22 +24,32 @@ export async function launchBrowser(): Promise<Browser> {
   }
 
   logger.info('Launching new browser instance...');
+  logger.info('Chromium executable path check...');
 
-  browserInstance = await chromium.launch({
-    headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-blink-features=AutomationControlled',
-      '--disable-web-security',
-      '--disable-features=IsolateOrigins,site-per-process',
-    ],
-  });
+  try {
+    browserInstance = await chromium.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-blink-features=AutomationControlled',
+        '--disable-web-security',
+        '--disable-features=IsolateOrigins,site-per-process',
+      ],
+    });
 
-  activeSessions = 1;
-  logger.info('Browser launched successfully');
+    activeSessions = 1;
+    logger.info('Browser launched successfully');
 
-  return browserInstance;
+    return browserInstance;
+  } catch (error) {
+    logger.error('Failed to launch browser:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : '',
+      executablePath: chromium.executablePath(),
+    });
+    throw error;
+  }
 }
 
 /**

@@ -37,6 +37,17 @@ jobs:
         env:
           NODE_ENV: production
 
+      - name: Install Playwright browsers
+        run: |
+          npx playwright install chromium
+          echo "Browsers installed to: $(npx playwright cache-path)"
+
+      - name: Package browsers for deployment
+        run: |
+          mkdir -p playwright-package
+          cp -r ~/.cache/ms-playwright/* playwright-package/ || echo "Failed to copy from ~/.cache"
+          ls -la playwright-package/
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -47,6 +58,7 @@ jobs:
             package.json
             package-lock.json
             startup.sh
+            playwright-package/
 
   deploy-infrastructure:
     runs-on: ubuntu-latest
