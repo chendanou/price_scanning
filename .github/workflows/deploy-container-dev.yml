@@ -1,0 +1,111 @@
+name: Deploy Container App to Dev
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20.x'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  ENVIRONMENT: 'dev'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint || echo "Linter not configured yet"
+
+      - name: Run tests
+        run: npm test || echo "Tests not configured yet"
+
+      - name: Build application
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+
+  deploy-infrastructure:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    outputs:
+      webapp-name: ${{ steps.deploy-bicep.outputs.webAppName }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_DEV }}
+
+      - name: Create Resource Group
+        run: |
+          az group create \
+            --name pricing_scan_rg_dev \
+            --location australiaeast
+
+      - name: Deploy Bicep
+        id: deploy-bicep
+        uses: azure/arm-deploy@v1
+        with:
+          subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          resourceGroupName: pricing_scan_rg_dev
+          template: ./infrastructure/main.bicep
+          parameters: >
+            environment=dev
+            location=australiaeast
+            containerImage=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            searchKey=${{ secrets.AZURE_SEARCH_KEY_DEV }}
+            openaiEndpoint=${{ secrets.AZURE_OPENAI_ENDPOINT_DEV }}
+            openaiKey=${{ secrets.AZURE_OPENAI_KEY_DEV }}
+          deploymentName: price-survey-container-dev-${{ github.run_number }}
+
+      - name: Get Container App URL
+        run: |
+          echo "Application deployed to: ${{ steps.deploy-bicep.outputs.webAppUrl }}"

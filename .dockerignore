@@ -1,0 +1,49 @@
+# Node modules (will be installed in container)
+node_modules
+npm-debug.log
+
+# Source files (only dist is needed)
+src
+
+# Development files
+.git
+.github
+.gitignore
+.env
+.env.*
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Test files
+tests
+*.test.ts
+*.spec.ts
+coverage
+
+# Documentation
+README.md
+*.md
+docs
+
+# Build artifacts not needed
+.cache
+.tmp
+logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Infrastructure (not needed in container)
+infrastructure
+*.bicep
+*.parameters.json
+
+# Playwright package (browsers already in base image)
+playwright-package

@@ -12,16 +12,39 @@ param location string = 'australiaeast'
 @description('Application name prefix')
 param appName string = 'price-survey'
 
+@description('Container image to deploy')
+param containerImage string
+
+@description('Container registry server')
+param containerRegistry string = 'ghcr.io'
+
+@description('Azure Search key')
+@secure()
+param searchKey string
+
+@description('Azure OpenAI endpoint')
+param openaiEndpoint string
+
+@description('Azure OpenAI key')
+@secure()
+param openaiKey string
+
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var resourcePrefix = '${appName}-${environment}-${uniqueSuffix}'
 
-// Deploy App Service
-module appService 'modules/app-service.bicep' = {
-  name: 'appServiceDeployment'
+// Deploy Container App
+module containerApp 'modules/container-app.bicep' = {
+  name: 'containerAppDeployment'
   params: {
     location: location
     appName: resourcePrefix
     environment: environment
+    containerImage: containerImage
+    containerRegistry: containerRegistry
+    searchEndpoint: aiSearch.outputs.searchEndpoint
+    searchKey: searchKey
+    openaiEndpoint: openaiEndpoint
+    openaiKey: openaiKey
   }
 }
 
@@ -44,8 +67,8 @@ module storage 'modules/storage.bicep' = {
   }
 }
 
-output webAppUrl string = appService.outputs.appUrl
-output webAppName string = appService.outputs.appName
+output webAppUrl string = containerApp.outputs.appUrl
+output webAppName string = containerApp.outputs.appName
 output searchEndpoint string = aiSearch.outputs.searchEndpoint
 output searchServiceName string = aiSearch.outputs.searchServiceName
 output storageAccountName string = storage.outputs.storageAccountName
